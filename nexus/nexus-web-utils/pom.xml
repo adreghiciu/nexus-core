@@ -80,11 +80,11 @@
     <dependency>
       <groupId>org.sonatype.sisu.inject</groupId>
       <artifactId>guice-servlet</artifactId>
-      <version>3.0-SNAPSHOT</version>
+      <version>3.0.1-SNAPSHOT</version>
       <exclusions>
         <exclusion>
-          <groupId>com.google.inject</groupId>
-          <artifactId>guice</artifactId>
+          <groupId>org.sonatype.sisu</groupId>
+          <artifactId>sisu-guice</artifactId>
         </exclusion>
       </exclusions>
     </dependency>    
