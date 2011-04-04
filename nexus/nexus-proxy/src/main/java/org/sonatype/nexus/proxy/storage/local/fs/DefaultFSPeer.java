@@ -19,6 +19,7 @@
 package org.sonatype.nexus.proxy.storage.local.fs;
 
 import java.io.File;
+import java.io.FileFilter;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -45,6 +46,8 @@ import org.sonatype.nexus.util.SystemPropertiesHelper;
 public class DefaultFSPeer
     implements FSPeer
 {
+    private static final String HIDDEN_TARGET_SUFFIX = ".nx-upload";
+
     @Requirement
     private Logger logger;
 
@@ -168,38 +171,43 @@ public class DefaultFSPeer
             // create parents down to the file itself (this will make those if needed, otherwise return silently)
             mkParentDirs( repository, toTarget );
 
-            if ( fromTarget.isDirectory() )
+            try
             {
-                try
-                {
-                    // copy
-                    FileUtils.copyDirectoryStructure( fromTarget, toTarget );
-
-                    // delete
-                    FileUtils.forceDelete( fromTarget );
-
-                    // update timestamp
-                    toTarget.setLastModified( fromTarget.lastModified() );
-                }
-                catch ( IOException e )
-                {
-                    throw new LocalStorageException( "Error during moveDirectory", e );
-                }
+                org.sonatype.nexus.util.FileUtils.move( fromTarget, toTarget );
             }
-            else if ( fromTarget.isFile() )
+            catch ( IOException e )
             {
-                try
+                logger.warn( "Unable to move item, falling back to copy+delete: " + toTarget.getPath(),
+                    logger.isDebugEnabled() ? e : null );
+
+                if ( fromTarget.isDirectory() )
                 {
-                    FileUtils.rename( fromTarget, toTarget );
+                    try
+                    {
+                        FileUtils.copyDirectoryStructure( fromTarget, toTarget );
+                    }
+                    catch ( IOException ioe )
+                    {
+                        throw new LocalStorageException( "Error during moveItem", ioe );
+                    }
                 }
-                catch ( IOException e )
+                else if ( fromTarget.isFile() )
                 {
-                    throw new LocalStorageException( "Error during moveItem", e );
+                    try
+                    {
+                        FileUtils.copyFile( fromTarget, toTarget );
+                    }
+                    catch ( IOException ioe )
+                    {
+                        throw new LocalStorageException( "Error during moveItem", ioe );
+                    }
                 }
-            }
-            else
-            {
-                throw new ItemNotFoundException( from, repository );
+                else
+                {
+                    // TODO throw exception?
+                    logger.error( "Unexpected item kind: " + toTarget.getClass() );
+                }
+                shredItem( repository, from, fromTarget );
             }
         }
         else
@@ -215,7 +223,14 @@ public class DefaultFSPeer
         {
             List<File> result = new ArrayList<File>();
 
-            File[] files = target.listFiles();
+            File[] files = target.listFiles( new FileFilter()
+            {
+                @Override
+                public boolean accept( File pathname )
+                {
+                    return !pathname.getName().endsWith( HIDDEN_TARGET_SUFFIX );
+                }
+            } );
 
             if ( files != null )
             {
@@ -254,7 +269,7 @@ public class DefaultFSPeer
 
     protected File getHiddenTarget( File target )
     {
-        File hiddenTarget = new File( target.getParentFile(), target.getName() + ".tmp" );
+        File hiddenTarget = new File( target.getParentFile(), target.getName() + HIDDEN_TARGET_SUFFIX );
 
         return hiddenTarget;
     }

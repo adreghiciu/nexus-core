@@ -32,6 +32,7 @@ import org.sonatype.nexus.proxy.ItemNotFoundException;
 import org.sonatype.nexus.proxy.LocalStorageException;
 import org.sonatype.nexus.proxy.NoSuchRepositoryException;
 import org.sonatype.nexus.proxy.NoSuchResourceStoreException;
+import org.sonatype.nexus.proxy.RepositoryNotAvailableException;
 import org.sonatype.nexus.proxy.ResourceStoreRequest;
 import org.sonatype.nexus.proxy.StorageException;
 import org.sonatype.nexus.proxy.access.AccessManager;
@@ -39,10 +40,13 @@ import org.sonatype.nexus.proxy.events.RepositoryEventEvictUnusedItems;
 import org.sonatype.nexus.proxy.events.RepositoryGroupMembersChangedEvent;
 import org.sonatype.nexus.proxy.events.RepositoryRegistryEventRemove;
 import org.sonatype.nexus.proxy.item.DefaultStorageCollectionItem;
+import org.sonatype.nexus.proxy.item.RepositoryItemUid;
 import org.sonatype.nexus.proxy.item.StorageCollectionItem;
 import org.sonatype.nexus.proxy.item.StorageItem;
+import org.sonatype.nexus.proxy.item.uid.IsGroupLocalOnlyAttribute;
 import org.sonatype.nexus.proxy.mapping.RequestRepositoryMapper;
 import org.sonatype.nexus.proxy.registry.RepositoryRegistry;
+import org.sonatype.nexus.proxy.utils.RepositoryUtils;
 import org.sonatype.plexus.appevents.Event;
 
 /**
@@ -138,7 +142,12 @@ public abstract class AbstractGroupRepository
             // ignored
         }
 
-        if ( !request.isRequestGroupLocalOnly() )
+        RepositoryItemUid uid = createUid( request.getRequestPath() );
+
+        final boolean isRequestGroupLocalOnly =
+            request.isRequestGroupLocalOnly() || uid.getBooleanAttributeValue( IsGroupLocalOnlyAttribute.class );
+
+        if ( !isRequestGroupLocalOnly )
         {
             for ( Repository repo : getMemberRepositories() )
             {
@@ -222,7 +231,12 @@ public abstract class AbstractGroupRepository
 
         try
         {
-            if ( !request.isRequestGroupLocalOnly() )
+            RepositoryItemUid uid = createUid( request.getRequestPath() );
+
+            final boolean isRequestGroupLocalOnly =
+                request.isRequestGroupLocalOnly() || uid.getBooleanAttributeValue( IsGroupLocalOnlyAttribute.class );
+
+            if ( !isRequestGroupLocalOnly )
             {
                 for ( Repository repo : getRequestRepositories( request ) )
                 {
@@ -395,7 +409,12 @@ public abstract class AbstractGroupRepository
     {
         ArrayList<StorageItem> items = new ArrayList<StorageItem>();
 
-        if ( !request.isRequestGroupLocalOnly() )
+        RepositoryItemUid uid = createUid( request.getRequestPath() );
+
+        final boolean isRequestGroupLocalOnly =
+            request.isRequestGroupLocalOnly() || uid.getBooleanAttributeValue( IsGroupLocalOnlyAttribute.class );
+
+        if ( !isRequestGroupLocalOnly )
         {
             for ( Repository repository : getRequestRepositories( request ) )
             {
@@ -407,6 +426,16 @@ public abstract class AbstractGroupRepository
 
                         items.add( item );
                     }
+                    catch ( ItemNotFoundException e )
+                    {
+                        // that's okay
+                    }
+                    catch ( RepositoryNotAvailableException e )
+                    {
+                        getLogger().debug(
+                            "Member repository " + RepositoryUtils.getLoggedNameString( e.getRepository() )
+                                + " is not available, request failed." );
+                    }
                     catch ( StorageException e )
                     {
                         throw e;
@@ -414,10 +443,6 @@ public abstract class AbstractGroupRepository
                     catch ( IllegalOperationException e )
                     {
                         getLogger().warn( "Member repository request failed", e );
-                    }
-                    catch ( ItemNotFoundException e )
-                    {
-                        // that's okay
                     }
                 }
                 else

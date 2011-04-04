@@ -139,6 +139,9 @@ public class DefaultIndexerManager
 
     /** Context id local suffix */
     public static final String CTX_SUFIX = "-ctx";
+    
+    /** Path prefix where index publishing happens */
+    public static final String PUBLISHING_PATH_PREFIX = "/.index";
 
     private static final Map<String, ReadWriteLock> locks = new HashMap<String, ReadWriteLock>();
 
@@ -1022,7 +1025,7 @@ public class DefaultIndexerManager
         throws IOException, IllegalOperationException, ItemNotFoundException
     {
         // this will force remote check for newer files
-        repository.expireCaches( new ResourceStoreRequest( "/.index" ) );
+        repository.expireCaches( new ResourceStoreRequest( PUBLISHING_PATH_PREFIX ) );
 
         IndexingContext context = getRepositoryIndexContext( repository );
 
@@ -1041,7 +1044,7 @@ public class DefaultIndexerManager
             public InputStream retrieve( String name )
                 throws IOException
             {
-                ResourceStoreRequest req = new ResourceStoreRequest( "/.index/" + name );
+                ResourceStoreRequest req = new ResourceStoreRequest( PUBLISHING_PATH_PREFIX + "/" + name );
 
                 try
                 {
@@ -1273,7 +1276,7 @@ public class DefaultIndexerManager
     @SuppressWarnings( "deprecation" )
     protected void deleteIndexItems( Repository repository )
     {
-        ResourceStoreRequest request = new ResourceStoreRequest( "/.index/" );
+        ResourceStoreRequest request = new ResourceStoreRequest( PUBLISHING_PATH_PREFIX );
 
         try
         {
@@ -1291,7 +1294,7 @@ public class DefaultIndexerManager
 
     protected void storeIndexItem( Repository repository, File file, IndexingContext context )
     {
-        String path = "/.index/" + file.getName();
+        String path = PUBLISHING_PATH_PREFIX + "/" + file.getName();
 
         FileInputStream fis = null;
 
@@ -1454,9 +1457,16 @@ public class DefaultIndexerManager
             req.getContexts().add( context );
         }
 
-        if ( from != null )
+        // if ( from != null )
+        // {
+        // req.setStart( from );
+        // }
+
+        // MINDEXER-14: no hit limit anymore. But to make change least obtrusive, we set hitLimit as count 1st, and if
+        // user set count, it will override it anyway
+        if ( hitLimit != null )
         {
-            req.setStart( from );
+            req.setCount( hitLimit );
         }
 
         if ( count != null )
@@ -1464,10 +1474,10 @@ public class DefaultIndexerManager
             req.setCount( count );
         }
 
-        if ( hitLimit != null )
-        {
-            req.setResultHitLimit( hitLimit );
-        }
+        // if ( hitLimit != null )
+        // {
+        // req._setResultHitLimit( hitLimit );
+        // }
 
         try
         {
@@ -1527,9 +1537,16 @@ public class DefaultIndexerManager
             req.getContexts().add( context );
         }
 
-        if ( from != null )
+        // if ( from != null )
+        // {
+        // req.setStart( from );
+        // }
+
+        // MINDEXER-14: no hit limit anymore. But to make change least obtrusive, we set hitLimit as count 1st, and if
+        // user set count, it will override it anyway
+        if ( hitLimit != null )
         {
-            req.setStart( from );
+            req.setCount( hitLimit );
         }
 
         if ( count != null )
@@ -1537,10 +1554,10 @@ public class DefaultIndexerManager
             req.setCount( count );
         }
 
-        if ( hitLimit != null )
-        {
-            req.setResultHitLimit( hitLimit );
-        }
+        // if ( hitLimit != null )
+        // {
+        // req._setResultHitLimit( hitLimit );
+        // }
 
         try
         {
@@ -1624,9 +1641,16 @@ public class DefaultIndexerManager
             req.getContexts().add( context );
         }
 
-        if ( from != null )
+        // if ( from != null )
+        // {
+        // req.setStart( from );
+        // }
+
+        // MINDEXER-14: no hit limit anymore. But to make change least obtrusive, we set hitLimit as count 1st, and if
+        // user set count, it will override it anyway
+        if ( hitLimit != null )
         {
-            req.setStart( from );
+            req.setCount( hitLimit );
         }
 
         if ( count != null )
@@ -1634,10 +1658,10 @@ public class DefaultIndexerManager
             req.setCount( count );
         }
 
-        if ( hitLimit != null )
-        {
-            req.setResultHitLimit( hitLimit );
-        }
+        // if ( hitLimit != null )
+        // {
+        // req._setResultHitLimit( hitLimit );
+        // }
 
         try
         {
@@ -1770,14 +1794,16 @@ public class DefaultIndexerManager
             req.setStart( from );
         }
 
+        // MINDEXER-14: no hit limit anymore. But to make change least obtrusive, we set hitLimit as count 1st, and if
+        // user set count, it will override it anyway
+        if ( hitLimit != null )
+        {
+            req.setCount( hitLimit );
+        }
+
         if ( count != null )
         {
             req.setCount( count );
-        }
-
-        if ( hitLimit != null )
-        {
-            req.setResultHitLimit( hitLimit );
         }
 
         return req;

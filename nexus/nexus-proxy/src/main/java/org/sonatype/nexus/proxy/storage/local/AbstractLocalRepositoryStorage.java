@@ -21,6 +21,8 @@ package org.sonatype.nexus.proxy.storage.local;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -32,8 +34,10 @@ import org.sonatype.nexus.proxy.ItemNotFoundException;
 import org.sonatype.nexus.proxy.LocalStorageException;
 import org.sonatype.nexus.proxy.ResourceStoreIteratorRequest;
 import org.sonatype.nexus.proxy.ResourceStoreRequest;
+import org.sonatype.nexus.proxy.item.ChecksummingContentLocator;
 import org.sonatype.nexus.proxy.item.LinkPersister;
 import org.sonatype.nexus.proxy.item.RepositoryItemUid;
+import org.sonatype.nexus.proxy.item.StorageFileItem;
 import org.sonatype.nexus.proxy.item.StorageItem;
 import org.sonatype.nexus.proxy.repository.Repository;
 import org.sonatype.nexus.proxy.storage.UnsupportedStorageOperationException;
@@ -180,4 +184,30 @@ public abstract class AbstractLocalRepositoryStorage
         throw new UnsupportedOperationException( "Iteration not supported!" );
     }
 
+    // ==
+
+    protected void prepareStorageFileItemForStore( final StorageFileItem item )
+        throws LocalStorageException
+    {
+        try
+        {
+            // replace content locator
+            ChecksummingContentLocator sha1cl =
+                new ChecksummingContentLocator( item.getContentLocator(), MessageDigest.getInstance( "SHA1" ),
+                    StorageFileItem.DIGEST_SHA1_KEY, item.getItemContext() );
+
+            // md5 is deprecated but still calculated
+            ChecksummingContentLocator md5cl =
+                new ChecksummingContentLocator( sha1cl, MessageDigest.getInstance( "MD5" ),
+                    StorageFileItem.DIGEST_MD5_KEY, item.getItemContext() );
+
+            item.setContentLocator( md5cl );
+        }
+        catch ( NoSuchAlgorithmException e )
+        {
+            throw new LocalStorageException(
+                "The JVM does not support SHA1 MessageDigest or MD5 MessageDigest, that is essential for Nexus. We cannot write to local storage! Please run Nexus on JVM that does provide these MessageDigests.",
+                e );
+        }
+    }
 }
